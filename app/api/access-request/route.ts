@@ -31,19 +31,23 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Nome e cognome sono obbligatori.' }, { status: 400 });
     }
 
-    const { error: insertError } = await supabase.from('access_requests').insert([
+    const { data: requestData, error: insertError } = await supabase.from('access_requests').insert([
       {
         nome,
         cognome,
         email: '',
         status: 'pending',
       },
-    ]);
+    ]).select('id').single();
 
-    if (insertError) {
+    if (insertError || !requestData) {
       console.error('Errore inserimento richiesta accesso:', insertError);
-      return NextResponse.json({ error: insertError.message }, { status: 500 });
+      return NextResponse.json({ error: insertError?.message || 'Errore durante l\'inserimento' }, { status: 500 });
     }
+
+    const baseUrl = req.headers.get('origin') || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : new URL(req.url).origin);
+    const approveUrl = `${baseUrl}/api/manage-request?id=${requestData.id}&action=approve`;
+    const rejectUrl = `${baseUrl}/api/manage-request?id=${requestData.id}&action=reject`;
 
     const transporter = nodemailer.createTransport({
       host: emailHost,
@@ -59,10 +63,19 @@ export async function POST(req: Request) {
       from: emailFrom,
       to: adminEmail,
       subject: `Richiesta accesso app SSN Milano: ${nome} ${cognome}`,
-      text: `L'utente ${nome} ${cognome} ha richiesto l'accesso all'app SSN Milano.
-
-Apri Supabase e gestisci la richiesta in access_requests oppure autorizza l'accesso manualmente.`,
-      html: `<p>L'utente <strong>${nome} ${cognome}</strong> ha richiesto l'accesso all'app <strong>SSN Milano</strong>.</p><p>Apri Supabase e gestisci la richiesta in <strong>access_requests</strong> oppure autorizza l'accesso manualmente.</p>`,
+      text: `L'utente ${nome} ${cognome} ha richiesto l'accesso all'app SSN Milano.\n\nApprova: ${approveUrl}\nRifiuta: ${rejectUrl}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
+          <h2 style="color: #111827; margin-top: 0;">Nuova richiesta di accesso</h2>
+          <p style="font-size: 16px; line-height: 1.5;">L'utente <strong>${nome} ${cognome}</strong> ha richiesto l'accesso all'app <strong>SSN Milano</strong>.</p>
+          <p style="font-size: 16px; line-height: 1.5;">Puoi approvare o rifiutare la richiesta direttamente da qui:</p>
+          <div style="margin-top: 30px; margin-bottom: 30px;">
+            <a href="${approveUrl}" style="background-color: #10b981; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; margin-right: 15px; display: inline-block;">✅ Approva</a>
+            <a href="${rejectUrl}" style="background-color: #ef4444; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">❌ Rifiuta</a>
+          </div>
+          <p style="margin-top: 30px; font-size: 13px; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 15px;">Se i pulsanti non funzionano, gestisci la richiesta manualmente nella tabella access_requests su Supabase.</p>
+        </div>
+      `,
     };
 
     await transporter.sendMail(message);

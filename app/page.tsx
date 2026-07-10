@@ -48,7 +48,7 @@ const messageStyles = (success: boolean) => ({
   background: success ? 'rgba(16, 185, 129, 0.12)' : 'rgba(248, 113, 113, 0.12)',
   border: `1px solid ${success ? 'rgba(34,197,94,0.2)' : 'rgba(244,63,94,0.2)'}`,
   color: success ? '#d1fae5' : '#fecaca',
-};
+});
 
 const resumoStyles = {
   marginTop: '12px',

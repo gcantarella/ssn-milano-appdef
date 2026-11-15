@@ -15,6 +15,9 @@ ALTER TABLE authorized_users
 ALTER TABLE access_requests
   ADD COLUMN IF NOT EXISTS device_id text;
 
+-- Aggiorna subito la cache dello schema usata dalle API Supabase (PostgREST).
+NOTIFY pgrst, 'reload schema';
+
 -- 3. Crea un indice unico su nome+cognome+device_id per l'upsert
 CREATE UNIQUE INDEX IF NOT EXISTS authorized_users_nome_cognome_device_id_idx
   ON authorized_users (nome, cognome, device_id);

@@ -24,8 +24,6 @@ export async function GET(req: Request) {
       return htmlResponse('Errore configurazione', '❌ Supabase non configurato correttamente.', '#ef4444');
     }
 
-    const newStatus = action === 'approve' ? 'approved' : 'rejected';
-
     // Recupera i dati della richiesta
     const { data: requestData, error: fetchError } = await supabase
       .from('access_requests')
@@ -42,20 +40,18 @@ export async function GET(req: Request) {
       return htmlResponse('Già gestita', `Questa richiesta è stata ${alreadyMsg} in precedenza.`, '#f59e0b');
     }
 
-    // Aggiorna lo status della richiesta
-    await supabase
-      .from('access_requests')
-      .update({ status: newStatus })
-      .eq('id', id);
+    if (action === 'approve') {
+      if (!requestData.device_id) {
+        return htmlResponse('Richiesta non valida', 'La richiesta non contiene il dispositivo. Chiedi all\'utente di inviarla di nuovo.', '#ef4444');
+      }
 
-    // Se approvata, inserisci l'utente nella tabella authorized_users
-    if (action === 'approve' && requestData.device_id) {
       const { error: authError } = await supabase
         .from('authorized_users')
         .upsert(
           [{
             nome: requestData.nome,
             cognome: requestData.cognome,
+            email: null,
             device_id: requestData.device_id,
             device_name: 'Dispositivo principale',
             approved_at: new Date().toISOString(),
@@ -65,7 +61,18 @@ export async function GET(req: Request) {
 
       if (authError) {
         console.error('Errore inserimento authorized_users:', authError.message);
+        return htmlResponse('Errore autorizzazione', 'Non e stato possibile associare il dispositivo. La richiesta resta in attesa.', '#ef4444');
       }
+    }
+
+    const { error: statusError } = await supabase
+      .from('access_requests')
+      .update({ status: action === 'approve' ? 'approved' : 'rejected' })
+      .eq('id', id);
+
+    if (statusError) {
+      console.error('Errore aggiornamento richiesta:', statusError.message);
+      return htmlResponse('Errore aggiornamento', 'L\'autorizzazione e stata salvata, ma non e stato possibile aggiornare la richiesta.', '#ef4444');
     }
 
     const isApprove = action === 'approve';

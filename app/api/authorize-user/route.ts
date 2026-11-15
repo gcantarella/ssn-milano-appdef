@@ -29,7 +29,7 @@ export async function POST(req: Request) {
     const { data, error } = await supabase
       .from('authorized_users')
       .upsert(
-        [{ nome, cognome, device_id: deviceId, device_name: deviceName }],
+        [{ nome, cognome, email: '', device_id: deviceId, device_name: deviceName }],
         { onConflict: 'nome,cognome,device_id' }
       )
       .select('id')

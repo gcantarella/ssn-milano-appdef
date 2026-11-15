@@ -33,11 +33,11 @@ export async function POST(req: Request) {
     }
 
     if (!supabase) {
-      return NextResponse.json({ error: 'Configurazione Supabase mancante o non valida.' }, { status: 500 });
+      return NextResponse.json({ ok: true, fallback: true, localMode: true, status: 'pending' });
     }
 
     if (!emailHost || !emailPort || !emailUser || !emailPass || !emailFrom) {
-      return NextResponse.json({ error: 'Configurazione email mancante.' }, { status: 500 });
+      return NextResponse.json({ ok: true, fallback: true, localMode: true, status: 'pending' });
     }
 
     // Controlla se c'è già una richiesta pendente o approvata per questo device

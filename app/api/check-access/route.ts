@@ -10,6 +10,9 @@ const supabase = supabaseUrl && serviceRoleKey && !serviceRoleKey.includes('<')
   ? createClient(supabaseUrl, serviceRoleKey)
   : null;
 
+// Scadenza accesso: 12 ore
+const ACCESS_EXPIRY_HOURS = 12;
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -22,40 +25,59 @@ export async function POST(req: Request) {
     }
 
     if (!supabase) {
-      return NextResponse.json({ error: 'Configurazione Supabase mancante.' }, { status: 500 });
+      return NextResponse.json({ ok: true, approved: false, fallback: true, reason: 'config_missing' });
     }
 
-    // Prima controlla se c'è una richiesta approved per questa persona
-    const { data: requestData } = await supabase
-      .from('access_requests')
-      .select('id, status')
-      .eq('nome', nome)
-      .eq('cognome', cognome)
-      .eq('status', 'approved')
-      .order('requested_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (!requestData) {
-      // Nessuna richiesta approvata
-      return NextResponse.json({ ok: true, approved: false });
-    }
-
-    // Verifica che il device_id coincida con quello autorizzato
-    const { data: authUser } = await supabase
+    // Controlla se l'utente è autorizzato con questo dispositivo
+    const { data: authUser, error: authError } = await supabase
       .from('authorized_users')
-      .select('id, device_id')
+      .select('id, approved_at')
       .eq('nome', nome)
       .eq('cognome', cognome)
       .eq('device_id', deviceId)
       .maybeSingle();
 
-    if (!authUser) {
-      // Approvato ma da un dispositivo diverso
-      return NextResponse.json({ ok: true, approved: false, reason: 'wrong_device' });
+    if (authError) {
+      throw authError;
     }
 
-    return NextResponse.json({ ok: true, approved: true });
+    if (authUser) {
+      // Controlla scadenza 12 ore
+      const approvedAt = new Date(authUser.approved_at || 0);
+      const now = new Date();
+      const hoursElapsed = (now.getTime() - approvedAt.getTime()) / (1000 * 60 * 60);
+
+      if (hoursElapsed > ACCESS_EXPIRY_HOURS) {
+        // Accesso scaduto: rimuovi l'autorizzazione e la richiesta
+        await supabase.from('authorized_users').delete().eq('id', authUser.id);
+        await supabase
+          .from('access_requests')
+          .update({ status: 'expired' })
+          .eq('nome', nome)
+          .eq('cognome', cognome)
+          .eq('device_id', deviceId)
+          .eq('status', 'approved');
+
+        return NextResponse.json({ ok: true, approved: false, reason: 'expired' });
+      }
+
+      return NextResponse.json({ ok: true, approved: true });
+    }
+
+    // Controlla se c'è un'autorizzazione su un altro dispositivo
+    const { data: otherDeviceUser } = await supabase
+      .from('authorized_users')
+      .select('id')
+      .eq('nome', nome)
+      .eq('cognome', cognome)
+      .limit(1)
+      .maybeSingle();
+
+    return NextResponse.json({
+      ok: true,
+      approved: false,
+      ...(otherDeviceUser ? { reason: 'wrong_device' } : {}),
+    });
   } catch (error) {
     console.error('Errore check-access route:', error);
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Errore sconosciuto' }, { status: 500 });

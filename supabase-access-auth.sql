@@ -22,9 +22,17 @@ CREATE TABLE IF NOT EXISTS access_requests (
   nome text NOT NULL,
   cognome text NOT NULL,
   email text NOT NULL,
+  device_id text,
   status text NOT NULL DEFAULT 'pending',
   requested_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- Compatibilita con database creati prima dell'introduzione del device.
+ALTER TABLE access_requests
+  ADD COLUMN IF NOT EXISTS device_id text;
+
+-- Aggiorna subito la cache dello schema usata dalle API Supabase (PostgREST).
+NOTIFY pgrst, 'reload schema';
 
 -- Se le tabelle esistono già e mancano colonne, usa queste istruzioni aggiuntive:
 -- ALTER TABLE access_requests ADD COLUMN IF NOT EXISTS nome text NOT NULL;

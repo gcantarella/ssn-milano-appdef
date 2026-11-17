@@ -51,7 +51,9 @@ export async function GET(req: Request) {
           [{
             nome: requestData.nome,
             cognome: requestData.cognome,
-            email: null,
+            // La tabella storica richiede un valore non nullo per email,
+            // ma l'app non raccoglie email nel form di accesso.
+            email: '',
             device_id: requestData.device_id,
             device_name: 'Dispositivo principale',
             approved_at: new Date().toISOString(),

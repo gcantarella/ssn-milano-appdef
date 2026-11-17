@@ -11,6 +11,12 @@ ALTER TABLE authorized_users
   ADD COLUMN IF NOT EXISTS device_name text,
   ADD COLUMN IF NOT EXISTS approved_at timestamptz DEFAULT now();
 
+ALTER TABLE authorized_users
+  ADD COLUMN IF NOT EXISTS email text NOT NULL DEFAULT '';
+
+ALTER TABLE authorized_users
+  ALTER COLUMN email SET DEFAULT '';
+
 -- 2. Aggiorna tabella access_requests con la colonna device_id
 ALTER TABLE access_requests
   ADD COLUMN IF NOT EXISTS device_id text;

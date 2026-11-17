@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import StruttureApp from '@/components/StruttureApp';
 
 // ─── Stili ───────────────────────────────────────────────────────────────────
 
@@ -272,6 +273,10 @@ export default function Home() {
   };
 
   if (!hydrated) return null;
+
+  if (accessGranted) {
+    return <StruttureApp nome={`${nome} ${cognome}`} onLogout={handleReset} />;
+  }
 
   return (
     <main style={pageStyles}>

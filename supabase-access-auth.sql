@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS authorized_users (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   nome text NOT NULL,
   cognome text NOT NULL,
+  email text NOT NULL DEFAULT '',
   device_id text NOT NULL,
   device_name text,
   approved_at timestamptz NOT NULL DEFAULT now(),
@@ -30,6 +31,9 @@ CREATE TABLE IF NOT EXISTS access_requests (
 -- Compatibilita con database creati prima dell'introduzione del device.
 ALTER TABLE access_requests
   ADD COLUMN IF NOT EXISTS device_id text;
+
+ALTER TABLE authorized_users
+  ADD COLUMN IF NOT EXISTS email text NOT NULL DEFAULT '';
 
 -- Aggiorna subito la cache dello schema usata dalle API Supabase (PostgREST).
 NOTIFY pgrst, 'reload schema';

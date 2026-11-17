@@ -51,9 +51,10 @@ export async function GET(req: Request) {
           [{
             nome: requestData.nome,
             cognome: requestData.cognome,
-            // La tabella storica richiede un valore non nullo per email,
-            // ma l'app non raccoglie email nel form di accesso.
-            email: '',
+            // Compatibilita con lo schema storico: email puo essere sia
+            // obbligatoria sia univoca, pur non essendo raccolta dal form.
+            // Un identificatore tecnico per device soddisfa entrambi i vincoli.
+            email: `access-${requestData.device_id}@device.local`,
             device_id: requestData.device_id,
             device_name: 'Dispositivo principale',
             approved_at: new Date().toISOString(),
